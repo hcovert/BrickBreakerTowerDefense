@@ -1,109 +1,96 @@
-//
-//  GameScene.swift
-//  BrickBreakerTowerDefense
-//
-//  Created by Jack Luzik on 5/25/23.
-//
-
+//Hello Git
 import SpriteKit
-import GameplayKit
 
-class GameScene: SKScene {
-    
-    var entities = [GKEntity]()
-    var graphs = [String : GKGraph]()
-    
-    private var lastUpdateTime : TimeInterval = 0
-    private var label : SKLabelNode?
-    private var spinnyNode : SKShapeNode?
-    
-    override func sceneDidLoad() {
+class GameScene: SKScene, SKPhysicsContactDelegate {
 
-        self.lastUpdateTime = 0
-        
-        // Get label node from scene and store it for use later
-        self.label = self.childNode(withName: "//helloLabel") as? SKLabelNode
-        if let label = self.label {
-            label.alpha = 0.0
-            label.run(SKAction.fadeIn(withDuration: 2.0))
-        }
-        
-        // Create shape node to use during mouse interaction
-        let w = (self.size.width + self.size.height) * 0.05
-        self.spinnyNode = SKShapeNode.init(rectOf: CGSize.init(width: w, height: w), cornerRadius: w * 0.3)
-        
-        if let spinnyNode = self.spinnyNode {
-            spinnyNode.lineWidth = 2.5
-            
-            spinnyNode.run(SKAction.repeatForever(SKAction.rotate(byAngle: CGFloat(Double.pi), duration: 1)))
-            spinnyNode.run(SKAction.sequence([SKAction.wait(forDuration: 0.5),
-                                              SKAction.fadeOut(withDuration: 0.5),
-                                              SKAction.removeFromParent()]))
+    private var ball: SKSpriteNode!
+    private var paddle: SKSpriteNode!
+    private var bricks = [SKSpriteNode]()
+
+    override func didMove(to view: SKView) {
+        setupPhysics()
+        createBall()
+        createPaddle()
+        createBricks()
+    }
+
+    private func setupPhysics() {
+        physicsWorld.contactDelegate = self
+        physicsWorld.gravity = CGVector(dx: 2, dy: 2)
+        physicsBody = SKPhysicsBody(edgeLoopFrom: frame)
+        physicsBody?.friction = 0
+        physicsBody?.restitution = 1.0
+    }
+
+    private func createBall() {
+        let ballTexture = SKTexture(imageNamed: "BallSprite")
+        ball = SKSpriteNode(texture: ballTexture)
+        ball.position = CGPoint(x: frame.midX, y: frame.midY)
+        ball.physicsBody = SKPhysicsBody(circleOfRadius: ball.size.width / 2)
+        ball.physicsBody?.categoryBitMask = 0x1 << 0
+        ball.physicsBody?.contactTestBitMask = 0x1 << 1
+        ball.physicsBody?.collisionBitMask = 0x1 << 1
+        addChild(ball)
+
+        // Apply an initial impulse to the ball
+        ball.physicsBody?.applyImpulse(CGVector(dx: 10, dy: 10))
+    }
+
+    private func createPaddle() {
+        paddle = SKSpriteNode(color: .white, size: CGSize(width: 100, height: 20))
+        paddle.position = CGPoint(x: frame.midX, y: frame.minY + 50)
+        paddle.physicsBody = SKPhysicsBody(rectangleOf: paddle.size)
+        paddle.physicsBody?.isDynamic = false
+        paddle.physicsBody?.categoryBitMask = 0x1 << 1
+        paddle.physicsBody?.contactTestBitMask = 0x1 << 0
+        paddle.physicsBody?.collisionBitMask = 0x1 << 0
+        addChild(paddle)
+    }
+
+    private func createBricks() {
+        let brickWidth: CGFloat = 50
+        let brickHeight: CGFloat = 20
+        let numRows = 5
+        let numCols = Int(frame.width / brickWidth)
+        let xOffset = (frame.width - brickWidth * CGFloat(numCols)) / 2
+
+        for row in 0..<numRows {
+            for col in 0..<numCols {
+                let brick = SKSpriteNode(color: .red, size: CGSize(width: brickWidth, height: brickHeight))
+                brick.position = CGPoint(x: xOffset + brickWidth * CGFloat(col), y: frame.maxY - brickHeight * CGFloat(row))
+                brick.physicsBody = SKPhysicsBody(rectangleOf: brick.size)
+                brick.physicsBody?.isDynamic = false
+                brick.physicsBody?.categoryBitMask = 0x1 << 1
+                brick.physicsBody?.contactTestBitMask = 0x1 << 0
+                brick.physicsBody?.collisionBitMask = 0x1 << 0
+                addChild(brick)
+                bricks.append(brick)
+            }
         }
     }
-    
-    
-    func touchDown(atPoint pos : CGPoint) {
-        if let n = self.spinnyNode?.copy() as! SKShapeNode? {
-            n.position = pos
-            n.strokeColor = SKColor.green
-            self.addChild(n)
-        }
-    }
-    
-    func touchMoved(toPoint pos : CGPoint) {
-        if let n = self.spinnyNode?.copy() as! SKShapeNode? {
-            n.position = pos
-            n.strokeColor = SKColor.blue
-            self.addChild(n)
-        }
-    }
-    
-    func touchUp(atPoint pos : CGPoint) {
-        if let n = self.spinnyNode?.copy() as! SKShapeNode? {
-            n.position = pos
-            n.strokeColor = SKColor.red
-            self.addChild(n)
-        }
-    }
-    
-    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        if let label = self.label {
-            label.run(SKAction.init(named: "Pulse")!, withKey: "fadeInOut")
-        }
-        
-        for t in touches { self.touchDown(atPoint: t.location(in: self)) }
-    }
-    
+
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
-        for t in touches { self.touchMoved(toPoint: t.location(in: self)) }
-    }
-    
-    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-        for t in touches { self.touchUp(atPoint: t.location(in: self)) }
-    }
-    
-    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
-        for t in touches { self.touchUp(atPoint: t.location(in: self)) }
-    }
-    
-    
-    override func update(_ currentTime: TimeInterval) {
-        // Called before each frame is rendered
-        
-        // Initialize _lastUpdateTime if it has not already been
-        if (self.lastUpdateTime == 0) {
-            self.lastUpdateTime = currentTime
+        if let touch = touches.first {
+            let location = touch.location(in: self)
+            paddle.position.x = location.x
         }
-        
-        // Calculate time since last update
-        let dt = currentTime - self.lastUpdateTime
-        
-        // Update entities
-        for entity in self.entities {
-            entity.update(deltaTime: dt)
+    }
+
+    func didBegin(_ contact: SKPhysicsContact) {
+        if let nodeA = contact.bodyA.node, let nodeB = contact.bodyB.node {
+            if nodeA == ball {
+                if let index = bricks.firstIndex(of: nodeB as! SKSpriteNode) {
+                    bricks.remove(at: index)
+                    nodeB.removeFromParent()
+                    // Handle brick collision
+                }
+            } else if nodeB == ball {
+                if let index = bricks.firstIndex(of: nodeA as! SKSpriteNode) {
+                    bricks.remove(at: index)
+                    nodeA.removeFromParent()
+                    // Handle brick collision
+                }
+            }
         }
-        
-        self.lastUpdateTime = currentTime
     }
 }
