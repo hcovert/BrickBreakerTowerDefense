@@ -1,7 +1,5 @@
-//Hello Git
-//Test Test
-//branch 1
-//main?
+
+//12.0 compatible
 import SpriteKit
 
 class GameScene: SKScene, SKPhysicsContactDelegate {
